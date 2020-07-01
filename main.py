@@ -1,83 +1,63 @@
 #!/usr/bin/python3
 
-import requests, json
-from math import sqrt
+import requests
 
-#
-#   perhelion sun                 aphelion
-#     |<--Rp-->|<--------Ra--------->|
-#     |     ___|_-----------_____    |
-#     | -^^    |                 ^^- |
-#     |/       |                    \|
-#     |        |              ,      |
-#     X--------S------O------S-------X
-#     |        |      |      |       |
-#     |<--q--->|<-ea->|<-ea->|       |
-#     |               |              |
-#     |<------a------>|<------a------>|              |
-#
-#   e : eccentricity
-#   a : semimajorAxis
-#
-# https://stjarnhimlen.se/comp/tutorial.html
-#
+def get_planet_pos(name):
+    url = ("https://ssd.jpl.nasa.gov/horizons_batch.cgi?batch=1"
+         + "&COMMAND='399'"
+         + "&CENTER='500@0'"
+         + "&MAKE_EPHEM='YES'"
+         + "&TABLE_TYPE='VECTORS'"
+         + "&START_TIME='2020-07-01'"
+         + "&STOP_TIME='2020-07-31'"
+         + "&STEP_SIZE='1 d'"
+         + "&OUT_UNITS='AU-D'"
+         + "&REF_PLANE='ECLIPTIC'"
+         + "&REF_SYSTEM='J2000'"
+         + "&VECT_CORR='NONE'"
+         + "&VEC_LABELS='NO'"
+         + "&VEC_DELTA_T='NO'"
+         + "&CSV_FORMAT='YES'"
+         + "&OBJ_DATA='NO'"
+         + "&VEC_TABLE='1'")
 
-class Planet:
-    def __init__(self, raw_json):
+    # print(url)
+    text = requests.get(url).text
+    # print(text)
+    scsv = text[text.find('$$SOE\n') + 6: text.find('$$EOE')]
+    # print(scsv)
 
-        self.raw = raw_json
-        self.name = raw_json["name"]
+    from io import StringIO
+    import csv
 
-        self.semimajorAxis = raw_json["semimajorAxis"]
+    reader = list(csv.reader(StringIO(scsv), delimiter=','))
+    x, y, z = tuple(([float(row[i]) for row in reader]) for i in range(2,5))
+    return x, y, z
 
-        self.perihelion = raw_json["perihelion"]
-        self.aphelion = raw_json["aphelion"]
-
-        self.eccentricity = raw_json["eccentricity"]
-        self.inclination = raw_json["inclination"]
-        self.meanRadius = raw_json["meanRadius"]
-
-        # mass [kg]
-        self.mass = (raw_json["mass"]["massValue"] *
-                    10 ** raw_json["mass"]["massExponent"])
-        print("mass", self.mass)
-
-        m = self.mass / 5.02785431e-31 #Solar mass
-        a = self.semimajorAxis #km
-        e = self.eccentricity # coef
-        T = 000
-        q = a * (1 - e) # Rp [km]
-        Q = a * (1 + e) # Ra [km]
-        i = self.inclination # degrees
-        P = 365.256898326 * a**1.5/sqrt(1+m) #day
-        n = 360 / P # deg/day
-        t = 000
-        M = n * (t - T) # Mean anomaly
-        w = 000
-        N = 000
-        L = M + w + N # Mean Longitude
-        # M = E - e * sin(E) kepler eq
-        v = 000 # True anomaly
-
-
-    def __str__(self):
-        return str(self.raw)
-
-
-def get_planet(name):
-    url = "https://api.le-systeme-solaire.net/rest/bodies/{{{}}}".format(name)
-    response = requests.get(url)
-    data = response.json()
-    print(data)
-    return Planet(data)
-
-
+from mpl_toolkits.mplot3d import Axes3D
+import matplotlib.pyplot as plt
 
 def main():
-    print("Hello word");
-    planet = get_planet("earth");
-    print(planet)
+    x, y, z = get_planet_pos("earth")
+    print(x)
+    print(y)
+    print(z)
 
+    # plot3
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    ax.scatter(0, 0, 0, color='r')
+    ax.text(0, 0, 0, "SUN", size=10, zorder=1, color='k')
+
+    ax.plot3D(x, y, z, "red", label="earth")
+    ax.plot3D(list(map(lambda x: x/2, x)), y, z, "blue", label="earth2")
+
+    plt.legend()
+    plt.show()
+
+    # plot3(list(map(lambda x: x/2, x)), y, z, "blue")
+    print("")
 
 if __name__ == '__main__':
     main()
